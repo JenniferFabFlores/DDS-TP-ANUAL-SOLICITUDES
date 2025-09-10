@@ -5,6 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ar.edu.utn.dds.k3003.clients.dtos.EstadoPatchDTO;
+import ar.edu.utn.dds.k3003.clients.dtos.HechoResponseDTO;
 import ar.edu.utn.dds.k3003.facades.FachadaFuente;
 import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPdI;
 import ar.edu.utn.dds.k3003.facades.dtos.ColeccionDTO;
@@ -22,7 +23,7 @@ public class FuentesProxy implements FachadaFuente {
   
     public FuentesProxy(ObjectMapper objectMapper) {
       var env = System.getenv();
-      this.endpoint = env.getOrDefault("URL_FUENTES", "https://two025-tp-entrega-2-jagrivero.onrender.com/");
+      this.endpoint = env.getOrDefault("URL_FUENTES", "https://two025-tp-entrega-2-jagrivero.onrender.com/api/");
   
       var retrofit =
           new Retrofit.Builder()
@@ -35,10 +36,19 @@ public class FuentesProxy implements FachadaFuente {
 
   @SneakyThrows
   public HechoDTO buscarHechoXId(String id) {
-    Response<HechoDTO> execute = service.get(id).execute();
+    Response<HechoResponseDTO> execute = service.get(id).execute();
 
     if (execute.isSuccessful()) {
-      return execute.body();
+      HechoResponseDTO response = execute.body();
+      if (response == null) {
+        return null;
+      }
+      // Convertir HechoResponseDTO a HechoDTO
+      return new HechoDTO(
+        response.id(),
+        response.titulo(),
+        response.origen()
+      );
     }
     if (execute.code() == HttpStatus.NOT_FOUND.getCode()) {
       return null;

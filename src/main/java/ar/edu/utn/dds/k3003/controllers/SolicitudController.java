@@ -3,6 +3,7 @@ package ar.edu.utn.dds.k3003.controllers;
 import ar.edu.utn.dds.k3003.app.Fachada;
 import ar.edu.utn.dds.k3003.facades.dtos.EstadoSolicitudBorradoEnum;
 import ar.edu.utn.dds.k3003.facades.dtos.SolicitudDTO;
+import ar.edu.utn.dds.k3003.controllers.dtos.HechoResponseDTO;
 import ar.edu.utn.dds.k3003.controllers.dtos.SolicitudRequestDTO;
 import ar.edu.utn.dds.k3003.controllers.dtos.SolicitudUpdateRequestDTO;
 import ar.edu.utn.dds.k3003.controllers.dtos.SolicitudResponseDTO;
@@ -37,6 +38,22 @@ public class SolicitudController {
                     .collect(Collectors.toList());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/hechos/{hechoId}")
+    public ResponseEntity<HechoResponseDTO> getSolicitudesByHechoId(@PathVariable String hechoId) {
+        try {
+            List<SolicitudDTO> solicitudes = fachada.buscarSolicitudXHecho(hechoId);
+            if (solicitudes.isEmpty()) {
+                return ResponseEntity.ok(new HechoResponseDTO(hechoId, true));
+            } else if (solicitudes.stream().anyMatch(solicitud -> solicitud.estado() == EstadoSolicitudBorradoEnum.ACEPTADA)) {
+                return ResponseEntity.ok(new HechoResponseDTO(hechoId, false));
+            }
+            return ResponseEntity.ok(new HechoResponseDTO(hechoId, true)); 
+        }
+        catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
