@@ -39,30 +39,48 @@ public class FuentesProxy implements FachadaFuente {
     }
 
   @Override
-  @SneakyThrows
   public HechoDTO buscarHechoXId(String id) {
-    log.info("[FuentesProxy] GET /hechos/{} -> start", id);
+    long t0 = System.nanoTime();
+    try {
+      var call = service.get(id);
+      var req = call.request();
+      log.info("[FuentesProxy] -> {} {}", req.method(), req.url());
 
-    Response<HechoResponseDTO> resp = service.get(id).execute();
+      var resp = call.execute();
+      long ms = (System.nanoTime() - t0) / 1_000_000;
+      log.info("[FuentesProxy] <- {} {} ({} ms)", resp.code(), resp.message(), ms);
 
-    if (resp.isSuccessful()) {
-      HechoResponseDTO body = resp.body();
-      log.info("[FuentesProxy] GET /hechos/{} <- {} bodyNull={}", id, resp.code(), (body == null));
-      if (body == null) {
+      if (resp.isSuccessful()) {
+        var body = resp.body();
+        if (body == null) {
+          log.warn("[FuentesProxy] body null para id={}", id);
+          return null;
+        }
+        return new HechoDTO(body.id(), body.titulo(), body.origen());
+      }
+
+      if (resp.code() == 404) {
+        log.info("[FuentesProxy] Hecho no encontrado (404) id={}", id);
         return null;
       }
-      return new HechoDTO(body.id(), body.titulo(), body.origen());
+
+      String errBody;
+      try { errBody = resp.errorBody() != null ? resp.errorBody().string() : "<empty>"; }
+      catch (Exception ignore) { errBody = "<unreadable>"; }
+
+      log.error("[FuentesProxy] HTTP {} {}. body={}", resp.code(), resp.message(), errBody);
+      throw new RuntimeException("Error conectándose con Hechos: HTTP " + resp.code());
+
+    } catch (java.io.IOException ioe) {
+      long ms = (System.nanoTime() - t0) / 1_000_000;
+      log.error("[FuentesProxy] IOException llamando Hechos id={} ({} ms): {}", id, ms, ioe.toString(), ioe);
+      throw new RuntimeException("Fallo de red llamando a Hechos", ioe);
+    } catch (Exception e) {
+      log.error("[FuentesProxy] Error inesperado llamando Hechos id={}: {}", id, e.toString(), e);
+      throw e;
     }
-
-    int code = resp.code();
-    log.warn("[FuentesProxy] GET /hechos/{} <- {} (no exitoso)", id, code);
-
-    if (code == 404) {
-      return null;
-    }
-
-    throw new RuntimeException("Error conectandose con el componente hechos: HTTP " + code);
   }
+
 
   @SneakyThrows
   public HechoDTO actualizarEstado(String id, EstadoHechoEnum estado) {
