@@ -8,6 +8,8 @@ import ar.edu.utn.dds.k3003.controllers.dtos.SolicitudRequestDTO;
 import ar.edu.utn.dds.k3003.controllers.dtos.SolicitudUpdateRequestDTO;
 import ar.edu.utn.dds.k3003.controllers.dtos.SolicitudResponseDTO;
 
+import ar.edu.utn.dds.k3003.repository.SolicitudRepository;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -24,9 +26,11 @@ public class SolicitudController {
 
     private final Fachada fachada;
     private static final Logger log = LoggerFactory.getLogger(SolicitudController.class);
+    private final SolicitudRepository repo;
 
-    public SolicitudController(Fachada fachada) {
+    public SolicitudController(Fachada fachada, SolicitudRepository repo) {
         this.fachada = fachada;
+        this.repo = repo;
     }
 
     @GetMapping
@@ -121,6 +125,26 @@ public class SolicitudController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    @DeleteMapping("/purge")
+    public ResponseEntity<PurgeResponse> purgeAll() {
+        try {
+            long total = repo.count();
+            log.warn("[SolicitudController.purge] Borrando TODAS las solicitudes. total={}", total);
+
+            // usa una sola query en BD, más eficiente
+            repo.deleteAllInBatch(); // o repo.deleteAll() si preferís
+
+            log.info("[SolicitudController.purge] OK. Eliminadas={}", total);
+            return ResponseEntity.ok(new PurgeResponse(total));
+        } catch (Exception e) {
+            log.error("[SolicitudController.purge] Error borrando todas las solicitudes", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // respuesta JSON simple { "eliminadas": N }
+    public record PurgeResponse(long eliminadas) {}
 
     private SolicitudResponseDTO convertToResponseDTO(SolicitudDTO solicitudDTO) {
         return new SolicitudResponseDTO(
