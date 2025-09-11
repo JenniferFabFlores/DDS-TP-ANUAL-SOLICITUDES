@@ -1,8 +1,8 @@
 package ar.edu.utn.dds.k3003.app;
 
-import ar.edu.utn.dds.k3003.facades.FachadaSolicitudes;
 import ar.edu.utn.dds.k3003.facades.dtos.EstadoSolicitudBorradoEnum;
 import ar.edu.utn.dds.k3003.facades.dtos.SolicitudDTO;
+import ar.edu.utn.dds.k3003.model.EstadoHechoEnum;
 import ar.edu.utn.dds.k3003.model.Solicitud;
 
 import java.util.ArrayList;
@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
-
-import ar.edu.utn.dds.k3003.facades.FachadaFuente;
 import ar.edu.utn.dds.k3003.facades.dtos.HechoDTO;
 
 public class Fachada implements FachadaSolicitudes {
@@ -43,16 +41,24 @@ public class Fachada implements FachadaSolicitudes {
     }
 
     @Override
-    public SolicitudDTO modificar(String idSolicitud, EstadoSolicitudBorradoEnum estado, String descripcion) throws NoSuchElementException {
+    public SolicitudDTO modificar(String idHecho, EstadoSolicitudBorradoEnum estado, String idSolicitud) throws NoSuchElementException {
         Solicitud solicitud = this.solicitudes.stream()
             .filter(x -> x.getId().equals(idSolicitud))
             .findFirst()
             .orElse(null);
+            
         if (solicitud == null) {
             throw new NoSuchElementException("Solicitud no encontrada");
         }
         solicitud.setEstado(estado);
-        solicitud.setDescripcion(descripcion);
+
+        if (estado == EstadoSolicitudBorradoEnum.ACEPTADA) {
+            this.fachadaFuente.actualizarEstado(idHecho, EstadoHechoEnum.BORRADO);
+        }
+        else if (estado == EstadoSolicitudBorradoEnum.RECHAZADA) {
+            this.solicitudes.remove(solicitud);
+        }
+
         return new SolicitudDTO(solicitud.getId(), solicitud.getDescripcion(), solicitud.getEstado(), solicitud.getHechoId());
     }
 
@@ -91,8 +97,7 @@ public class Fachada implements FachadaSolicitudes {
     }
     
     @Override
-    public void setFachadaFuente(FachadaFuente fuente) {
-        this.fachadaFuente = fuente;
+    public void setFachadaFuente(FachadaFuente fachadaFuente) {
+        this.fachadaFuente=fachadaFuente;
     }
-
 }

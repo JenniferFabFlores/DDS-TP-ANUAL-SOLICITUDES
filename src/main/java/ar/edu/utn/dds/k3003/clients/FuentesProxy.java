@@ -4,13 +4,14 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import ar.edu.utn.dds.k3003.app.FachadaFuente;
 import ar.edu.utn.dds.k3003.clients.dtos.EstadoPatchDTO;
 import ar.edu.utn.dds.k3003.clients.dtos.HechoResponseDTO;
-import ar.edu.utn.dds.k3003.facades.FachadaFuente;
 import ar.edu.utn.dds.k3003.facades.FachadaProcesadorPdI;
 import ar.edu.utn.dds.k3003.facades.dtos.ColeccionDTO;
 import ar.edu.utn.dds.k3003.facades.dtos.HechoDTO;
 import ar.edu.utn.dds.k3003.facades.dtos.PdIDTO;
+import ar.edu.utn.dds.k3003.model.EstadoHechoEnum;
 import io.javalin.http.HttpStatus;
 import lombok.SneakyThrows;
 import retrofit2.Response;
@@ -23,7 +24,7 @@ public class FuentesProxy implements FachadaFuente {
   
     public FuentesProxy(ObjectMapper objectMapper) {
       var env = System.getenv();
-      this.endpoint = env.getOrDefault("URL_FUENTES", "https://two025-tp-entrega-2-jagrivero.onrender.com/api/");
+      this.endpoint = env.getOrDefault("URL_FUENTES", "https://tp-anual-dds-fuentes.onrender.com/api/");
   
       var retrofit =
           new Retrofit.Builder()
@@ -57,45 +58,16 @@ public class FuentesProxy implements FachadaFuente {
   }
 
   @SneakyThrows
-  public boolean darBajaHecho(String id) {
-    EstadoPatchDTO estadoPatch = new EstadoPatchDTO("borrado");
-    Response<Void> execute = service.patch(id, estadoPatch).execute();
+  public HechoDTO actualizarEstado(String id, EstadoHechoEnum estado) {
+    EstadoPatchDTO estadoPatch = new EstadoPatchDTO("BORRADO");
+    Response<HechoDTO> execute = service.patch(id, estadoPatch).execute();
 
     if (execute.isSuccessful()) {
-      return true;
+      return execute.body() ;
     }
     if (execute.code() == HttpStatus.NOT_FOUND.getCode()) {
-      return false;
+      return null;
     }
     throw new IllegalArgumentException("Error conectandose con el componente hechos");
-  }
-
-  @Override
-  public HechoDTO agregar(HechoDTO hechoDTO) {
-    return null;
-  }
-
-  @Override
-  public ColeccionDTO buscarColeccionXId(String id) {
-    return null;
-  }
-
-  @Override
-  public List<HechoDTO> buscarHechosXColeccion(String id) {
-    return null;
-  }
-
-  @Override
-  public void setProcesadorPdI(FachadaProcesadorPdI procesadorPdI) {
-    return;
-  }
-  @Override
-  public ColeccionDTO agregar(ColeccionDTO coleccionDTO) {
-    return null;
-  }
-
-  @Override
-  public PdIDTO agregar(PdIDTO pdIDTO) {
-    return null;
   }
 }
