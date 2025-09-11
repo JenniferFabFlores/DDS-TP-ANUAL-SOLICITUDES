@@ -13,10 +13,14 @@ import java.util.stream.Collectors;
 import ar.edu.utn.dds.k3003.facades.dtos.HechoDTO;
 import ar.edu.utn.dds.k3003.repository.SolicitudRepository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Fachada implements FachadaSolicitudes {
     private List<Solicitud> solicitudes = new ArrayList<>();
     private FachadaFuente fachadaFuente;
     private final SolicitudRepository repo;
+    private static final Logger log = LoggerFactory.getLogger(Fachada.class);
 
     public Fachada(SolicitudRepository repo) {
         this.repo = repo;
@@ -24,14 +28,27 @@ public class Fachada implements FachadaSolicitudes {
 
     @Override
     public SolicitudDTO agregar(SolicitudDTO solicitudDTO) {
+        log.info("[Fachada.agregar] Inicio. hechoId={}, descLen={}",
+                solicitudDTO.hechoId(), solicitudDTO.descripcion() == null ? 0 : solicitudDTO.descripcion().length());
+
         if (solicitudDTO.hechoId() == null || solicitudDTO.hechoId().trim().isEmpty()) {
+            log.warn("[Fachada.agregar] hechoId vacío o null");
             throw new NoSuchElementException("El hechoId es requerido");
         }
-        HechoDTO hechoDTO = this.fachadaFuente.buscarHechoXId(solicitudDTO.hechoId());
+
+        HechoDTO hechoDTO;
+        try {
+            hechoDTO = this.fachadaFuente.buscarHechoXId(solicitudDTO.hechoId());
+        } catch (RuntimeException ex) {
+            log.error("[Fachada.agregar] Error consultando Hechos para id={}", solicitudDTO.hechoId(), ex);
+            throw ex;
+        }
+
         if (hechoDTO == null) {
+            log.warn("[Fachada.agregar] Hecho no encontrado. id={}", solicitudDTO.hechoId());
             throw new NoSuchElementException("El hechoId no existe");
         }
-        // Regla de 500 chars comentada para evaluador (dejamos igual que tu versión)
+
         var sol = Solicitud.builder()
                 .descripcion(solicitudDTO.descripcion())
                 .hechoId(solicitudDTO.hechoId())
@@ -39,6 +56,8 @@ public class Fachada implements FachadaSolicitudes {
                 .build();
 
         sol = repo.save(sol);
+        log.info("[Fachada.agregar] Persistida OK. id={}", sol.getId());
+
         return new SolicitudDTO(sol.getId(), sol.getDescripcion(), sol.getEstado(), sol.getHechoId());
     }
 

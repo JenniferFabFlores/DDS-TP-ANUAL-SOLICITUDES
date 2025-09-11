@@ -18,31 +18,37 @@ import ar.edu.utn.dds.k3003.facades.dtos.EstadoSolicitudBorradoEnum;
 public class Solicitud {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", updatable = false, nullable = false, length = 64)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private String id;
 
-    @Column(name = "descripcion", nullable = false, length = 4000)
     private String descripcion;
 
-    @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 32)
     private EstadoSolicitudBorradoEnum estado;
 
-    @Column(name = "justificacion", length = 4000)
     private String justificacion;
 
     @Transient
     private Hecho hechoAEliminar;
 
-    @Column(name = "ocultado", nullable = false)
     private boolean ocultado;
 
-    @Column(name = "hecho_id", nullable = false, length = 128)
     private String hechoId;
+
+
+    @PrePersist
+    private void prePersist() {
+        if (this.fechaCreacion == null) {
+            this.fechaCreacion = LocalDateTime.now();
+        }
+        // ocultado como boolean ya es false por defecto
+        if (this.estado == null) {
+            this.estado = EstadoSolicitudBorradoEnum.CREADA;
+        }
+    }
 
     public Solicitud(String id, String descripcion, String hechoId) {
         this.id = id;

@@ -17,10 +17,13 @@ import lombok.SneakyThrows;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.jackson.JacksonConverterFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FuentesProxy implements FachadaFuente {
     private final String endpoint;
     private final FuentesRetrofitClient service;
+    private static final Logger log = LoggerFactory.getLogger(FuentesProxy.class);
   
     public FuentesProxy(ObjectMapper objectMapper) {
       var env = System.getenv();
@@ -33,28 +36,32 @@ public class FuentesProxy implements FachadaFuente {
               .build();
   
       this.service = retrofit.create(FuentesRetrofitClient.class);
-    } 
+    }
 
+  @Override
   @SneakyThrows
   public HechoDTO buscarHechoXId(String id) {
-    Response<HechoResponseDTO> execute = service.get(id).execute();
+    log.info("[FuentesProxy] GET /hechos/{} -> start", id);
 
-    if (execute.isSuccessful()) {
-      HechoResponseDTO response = execute.body();
-      if (response == null) {
+    Response<HechoResponseDTO> resp = service.get(id).execute();
+
+    if (resp.isSuccessful()) {
+      HechoResponseDTO body = resp.body();
+      log.info("[FuentesProxy] GET /hechos/{} <- {} bodyNull={}", id, resp.code(), (body == null));
+      if (body == null) {
         return null;
       }
-      // Convertir HechoResponseDTO a HechoDTO
-      return new HechoDTO(
-        response.id(),
-        response.titulo(),
-        response.origen()
-      );
+      return new HechoDTO(body.id(), body.titulo(), body.origen());
     }
-    if (execute.code() == HttpStatus.NOT_FOUND.getCode()) {
+
+    int code = resp.code();
+    log.warn("[FuentesProxy] GET /hechos/{} <- {} (no exitoso)", id, code);
+
+    if (code == 404) {
       return null;
     }
-    throw new RuntimeException("Error conectandose con el componente hechos");
+
+    throw new RuntimeException("Error conectandose con el componente hechos: HTTP " + code);
   }
 
   @SneakyThrows
