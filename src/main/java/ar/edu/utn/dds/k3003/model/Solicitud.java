@@ -18,7 +18,7 @@ import ar.edu.utn.dds.k3003.facades.dtos.EstadoSolicitudBorradoEnum;
 public class Solicitud {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
     private String descripcion;
