@@ -20,23 +20,51 @@ import retrofit2.converter.jackson.JacksonConverterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 public class FuentesProxy implements FachadaFuente {
     private final String endpoint;
     private final FuentesRetrofitClient service;
     private static final Logger log = LoggerFactory.getLogger(FuentesProxy.class);
-  
-    public FuentesProxy(ObjectMapper objectMapper) {
-      var env = System.getenv();
-      this.endpoint = env.getOrDefault("URL_FUENTES", "https://tp-anual-dds-fuentes.onrender.com/api/");
-  
-      var retrofit =
-          new Retrofit.Builder()
-              .baseUrl(this.endpoint)
-              .addConverterFactory(JacksonConverterFactory.create(objectMapper))
-              .build();
-  
-      this.service = retrofit.create(FuentesRetrofitClient.class);
-    }
+
+//    public FuentesProxy(ObjectMapper objectMapper) {
+//      var env = System.getenv();
+//      this.endpoint = env.getOrDefault("URL_FUENTES", "https://tp-anual-dds-fuentes.onrender.com/api/");
+//
+//      var retrofit =
+//          new Retrofit.Builder()
+//              .baseUrl(this.endpoint)
+//              .addConverterFactory(JacksonConverterFactory.create(objectMapper))
+//              .build();
+//
+//      this.service = retrofit.create(FuentesRetrofitClient.class);
+//    }
+
+  public FuentesProxy(ObjectMapper objectMapper) {
+    var env = System.getenv();
+    String base = env.getOrDefault("URL_FUENTES", "https://tp-anual-dds-fuentes.onrender.com/api/");
+    this.endpoint = base.endsWith("/") ? base : base + "/";
+
+    // timeouts más holgados
+    okhttp3.OkHttpClient client = new okhttp3.OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build();
+
+    // ignorar campos desconocidos (evita errores si FUENTES agrega algo)
+    objectMapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    var retrofit = new retrofit2.Retrofit.Builder()
+            .baseUrl(this.endpoint)
+            .client(client) // <-- clave
+            .addConverterFactory(retrofit2.converter.jackson.JacksonConverterFactory.create(objectMapper))
+            .build();
+
+    this.service = retrofit.create(FuentesRetrofitClient.class);
+    log.info("[FuentesProxy] baseUrl={}", this.endpoint);
+  }
+
 
   @Override
   public HechoDTO buscarHechoXId(String id) {
