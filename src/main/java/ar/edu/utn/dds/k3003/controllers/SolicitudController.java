@@ -8,6 +8,8 @@ import ar.edu.utn.dds.k3003.controllers.dtos.SolicitudRequestDTO;
 import ar.edu.utn.dds.k3003.controllers.dtos.SolicitudUpdateRequestDTO;
 import ar.edu.utn.dds.k3003.controllers.dtos.SolicitudResponseDTO;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class SolicitudController {
 
     private final Fachada fachada;
+    private static final Logger log = LoggerFactory.getLogger(SolicitudController.class);
 
     public SolicitudController(Fachada fachada) {
         this.fachada = fachada;
@@ -93,18 +96,28 @@ public class SolicitudController {
     }
 
     @PatchMapping
-    public ResponseEntity<SolicitudResponseDTO> updateSolicitud(
-            @RequestBody SolicitudUpdateRequestDTO request) {
+    public ResponseEntity<SolicitudResponseDTO> updateSolicitud(@RequestBody SolicitudUpdateRequestDTO request) {
+        final int descLen = request.descripcion() == null ? 0 : request.descripcion().length();
+        log.info("[SolicitudController.updateSolicitud] request: id={}, estado={}, descLen={}",
+                request.id(), request.estado(), descLen);
+
         try {
+            // Firma corregida: (idSolicitud, estado, descripcion)
             SolicitudDTO updated = fachada.modificar(
                     request.id(),
                     request.estado(),
                     request.descripcion()
             );
+            log.info("[SolicitudController.updateSolicitud] OK: id={}, nuevoEstado={}",
+                    updated.id(), updated.estado());
             return ResponseEntity.ok(convertToResponseDTO(updated));
+
         } catch (NoSuchElementException e) {
+            log.warn("[SolicitudController.updateSolicitud] 404 Not Found: {}", e.getMessage());
             return ResponseEntity.notFound().build();
+
         } catch (Exception e) {
+            log.error("[SolicitudController.updateSolicitud] 500 Error inesperado", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

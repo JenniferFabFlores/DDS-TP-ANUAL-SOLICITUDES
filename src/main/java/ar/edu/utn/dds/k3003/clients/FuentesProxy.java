@@ -84,15 +84,31 @@ public class FuentesProxy implements FachadaFuente {
 
   @SneakyThrows
   public HechoDTO actualizarEstado(String id, EstadoHechoEnum estado) {
-    EstadoPatchDTO estadoPatch = new EstadoPatchDTO("BORRADO");
-    Response<HechoDTO> execute = service.patch(id, estadoPatch).execute();
+    long t0 = System.currentTimeMillis();
+    EstadoPatchDTO body = new EstadoPatchDTO(estado.name());
 
-    if (execute.isSuccessful()) {
-      return execute.body() ;
+    log.info("[FuentesProxy] -> PATCH /api/hecho/{} body={{estado:{}}}", id, body.getEstado());
+    Response<HechoDTO> execute;
+    try {
+      execute = service.patch(id, body).execute();
+    } catch (Exception e) {
+      long dt = System.currentTimeMillis() - t0;
+      log.error("[FuentesProxy] IOException PATCH Hechos id={} ({} ms): {}", id, dt, e.toString());
+      throw new RuntimeException("Fallo de red llamando a Hechos", e);
     }
+
+    long dt = System.currentTimeMillis() - t0;
+    if (execute.isSuccessful()) {
+      log.info("[FuentesProxy] <- {} ({} ms) id={}", execute.code(), dt, id);
+      return execute.body();
+    }
+
     if (execute.code() == HttpStatus.NOT_FOUND.getCode()) {
+      log.warn("[FuentesProxy] <- 404 ({} ms) id={}", dt, id);
       return null;
     }
-    throw new IllegalArgumentException("Error conectandose con el componente hechos");
+
+    log.error("[FuentesProxy] <- {} ({} ms) id={} Error conectándose con Hechos", execute.code(), dt, id);
+    throw new IllegalArgumentException("Error conectandose con el componente hechos (status " + execute.code() + ")");
   }
 }

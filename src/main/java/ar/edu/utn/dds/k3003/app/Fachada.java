@@ -62,19 +62,49 @@ public class Fachada implements FachadaSolicitudes {
     }
 
     @Override
-    public SolicitudDTO modificar(String idHecho, EstadoSolicitudBorradoEnum estado, String idSolicitud) throws NoSuchElementException {
+    public SolicitudDTO modificar(String idSolicitud,
+                                  EstadoSolicitudBorradoEnum nuevoEstado,
+                                  String nuevaDescripcion) throws NoSuchElementException {
+        final int descLen = nuevaDescripcion == null ? 0 : nuevaDescripcion.length();
+        log.info("[Fachada.modificar] Inicio. solicitudId={}, nuevoEstado={}, nuevaDescLen={}",
+                idSolicitud, nuevoEstado, descLen);
+
         var solicitud = repo.findById(idSolicitud).orElse(null);
         if (solicitud == null) {
+            log.warn("[Fachada.modificar] Solicitud no encontrada: id={}", idSolicitud);
             throw new NoSuchElementException("Solicitud no encontrada");
         }
-        solicitud.setEstado(estado);
-        solicitud = repo.save(solicitud);
 
-        if (estado == EstadoSolicitudBorradoEnum.ACEPTADA) {
-            this.fachadaFuente.actualizarEstado(idHecho, EstadoHechoEnum.BORRADO);
+        var estadoAnterior = solicitud.getEstado();
+
+        if (nuevaDescripcion != null && !nuevaDescripcion.isBlank()) {
+            solicitud.setDescripcion(nuevaDescripcion);
+        }
+        solicitud.setEstado(nuevoEstado);
+
+        solicitud = repo.save(solicitud);
+        log.info("[Fachada.modificar] Guardado OK. id={}, estado: {} -> {}",
+                solicitud.getId(), estadoAnterior, solicitud.getEstado());
+
+        // Si se acepta la solicitud, actualizar estado del Hecho
+        if (nuevoEstado == EstadoSolicitudBorradoEnum.ACEPTADA) {
+            String hechoId = solicitud.getHechoId();
+            log.info("[Fachada.modificar] ACEPTADA -> actualizar Hecho a BORRADO. hechoId={}", hechoId);
+            try {
+                var res = this.fachadaFuente.actualizarEstado(hechoId, EstadoHechoEnum.BORRADO);
+                if (res == null) {
+                    log.warn("[Fachada.modificar] Hecho no encontrado en componente Fuentes. hechoId={}", hechoId);
+                } else {
+                    log.info("[Fachada.modificar] Hecho actualizado OK. hechoId={}", hechoId);
+                }
+            } catch (Exception ex) {
+                log.error("[Fachada.modificar] Error actualizando estado del Hecho. hechoId={}", hechoId, ex);
+                throw new RuntimeException("Error actualizando estado del Hecho " + hechoId, ex);
+            }
         }
 
-        return new SolicitudDTO(solicitud.getId(), solicitud.getDescripcion(), solicitud.getEstado(), solicitud.getHechoId());
+        return new SolicitudDTO(solicitud.getId(), solicitud.getDescripcion(),
+                solicitud.getEstado(), solicitud.getHechoId());
     }
 
     @Override
