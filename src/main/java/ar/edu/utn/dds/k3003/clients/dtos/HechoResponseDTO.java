@@ -6,7 +6,7 @@ import java.util.List;
 
 public record HechoResponseDTO(
     @JsonProperty("id") String id,
-    @JsonProperty("nombreColeccion") String nombreColeccion,
+    @JsonProperty("nombre_coleccion") String nombreColeccion,
     @JsonProperty("titulo") String titulo,
     @JsonProperty("etiquetas") List<String> etiquetas,
     @JsonProperty("categoria") String categoria,
