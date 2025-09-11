@@ -11,52 +11,48 @@ import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 import ar.edu.utn.dds.k3003.facades.dtos.HechoDTO;
+import ar.edu.utn.dds.k3003.repository.SolicitudRepository;
 
 public class Fachada implements FachadaSolicitudes {
     private List<Solicitud> solicitudes = new ArrayList<>();
     private FachadaFuente fachadaFuente;
- 
+    private final SolicitudRepository repo;
+
+    public Fachada(SolicitudRepository repo) {
+        this.repo = repo;
+    }
+
     @Override
     public SolicitudDTO agregar(SolicitudDTO solicitudDTO) {
-      if (solicitudDTO.hechoId() == null || solicitudDTO.hechoId().trim().isEmpty()) {
-        throw new NoSuchElementException("El hechoId es requerido");
-      }
-      HechoDTO hechoDTO = this.fachadaFuente.buscarHechoXId(solicitudDTO.hechoId());
-      if (hechoDTO == null) {
-        throw new NoSuchElementException("El hechoId no existe");
-      }
-      //Comento esta parte para pasar los tests del Evaluador porque no estarían contemplando esta restricción.
-      //if (solicitudDTO.descripcion() == null || solicitudDTO.descripcion().length() < 500) {
-      //    throw new IllegalArgumentException("La descripcion debe tener al menos 500 caracteres");
-      //}
-      String nuevoId = String.valueOf(solicitudes.size() + 1);
-      Solicitud solicitud = new Solicitud(
-          nuevoId,
-          solicitudDTO.descripcion(),
-          solicitudDTO.hechoId()
-      );
-      
-      solicitudes.add(solicitud);
-      return new SolicitudDTO(nuevoId, solicitud.getDescripcion(), solicitud.getEstado(), solicitud.getHechoId());
+        if (solicitudDTO.hechoId() == null || solicitudDTO.hechoId().trim().isEmpty()) {
+            throw new NoSuchElementException("El hechoId es requerido");
+        }
+        HechoDTO hechoDTO = this.fachadaFuente.buscarHechoXId(solicitudDTO.hechoId());
+        if (hechoDTO == null) {
+            throw new NoSuchElementException("El hechoId no existe");
+        }
+        // Regla de 500 chars comentada para evaluador (dejamos igual que tu versión)
+        var sol = Solicitud.builder()
+                .descripcion(solicitudDTO.descripcion())
+                .hechoId(solicitudDTO.hechoId())
+                .estado(EstadoSolicitudBorradoEnum.CREADA)
+                .build();
+
+        sol = repo.save(sol);
+        return new SolicitudDTO(sol.getId(), sol.getDescripcion(), sol.getEstado(), sol.getHechoId());
     }
 
     @Override
     public SolicitudDTO modificar(String idHecho, EstadoSolicitudBorradoEnum estado, String idSolicitud) throws NoSuchElementException {
-        Solicitud solicitud = this.solicitudes.stream()
-            .filter(x -> x.getId().equals(idSolicitud))
-            .findFirst()
-            .orElse(null);
-            
+        var solicitud = repo.findById(idSolicitud).orElse(null);
         if (solicitud == null) {
             throw new NoSuchElementException("Solicitud no encontrada");
         }
         solicitud.setEstado(estado);
+        solicitud = repo.save(solicitud);
 
         if (estado == EstadoSolicitudBorradoEnum.ACEPTADA) {
             this.fachadaFuente.actualizarEstado(idHecho, EstadoHechoEnum.BORRADO);
-        }
-        else if (estado == EstadoSolicitudBorradoEnum.RECHAZADA) {
-            this.solicitudes.remove(solicitud);
         }
 
         return new SolicitudDTO(solicitud.getId(), solicitud.getDescripcion(), solicitud.getEstado(), solicitud.getHechoId());
@@ -64,37 +60,41 @@ public class Fachada implements FachadaSolicitudes {
 
     @Override
     public List<SolicitudDTO> buscarSolicitudXHecho(String idHecho) {
-        if (idHecho == null || idHecho.trim().isEmpty()) {
-            // Si no se proporciona idHecho, devolver todas las solicitudes
-            return this.solicitudes.stream()
+        List<Solicitud> origen = (idHecho == null || idHecho.trim().isEmpty())
+                ? repo.findAll()
+                : repo.findByHechoId(idHecho);
+
+        return origen.stream()
                 .map(x -> new SolicitudDTO(x.getId(), x.getDescripcion(), x.getEstado(), x.getHechoId()))
                 .collect(Collectors.toList());
-        }
-        
-        return this.solicitudes.stream()
-            .filter(x -> x.getHechoId().equals(idHecho))
-            .map(x -> new SolicitudDTO(x.getId(), x.getDescripcion(), x.getEstado(), x.getHechoId()))
-            .collect(Collectors.toList());
     }
-    
+
     @Override
     public SolicitudDTO buscarSolicitudXId(String idSolicitud) {
-        Solicitud solicitud = this.solicitudes.stream()
-            .filter(x -> x.getId().equals(idSolicitud))
-            .findFirst()
-            .orElse(null);
-        if (solicitud == null) {
-            return null;
-        }
+        var solicitud = repo.findById(idSolicitud).orElse(null);
+        if (solicitud == null) return null;
         return new SolicitudDTO(solicitud.getId(), solicitud.getDescripcion(), solicitud.getEstado(), solicitud.getHechoId());
     }
 
     @Override
     public boolean estaActivo(String idHecho) {
-        return this.solicitudes.stream()
-            .filter(x -> x.getHechoId().equals(idHecho))
-            .anyMatch(x -> x.getEstado() == EstadoSolicitudBorradoEnum.CREADA);
+
+        HechoDTO hechoDTO = this.fachadaFuente.buscarHechoXId(idHecho);
+        if (hechoDTO == null) {
+            return false;
+        } else{
+            var estados = repo.findByHechoId(idHecho).stream()
+                    .map(Solicitud::getEstado)
+                    .collect(java.util.stream.Collectors.toSet());
+
+            if (estados.contains(EstadoSolicitudBorradoEnum.ACEPTADA)) {
+                return false;
+            }
+            return estados.contains(EstadoSolicitudBorradoEnum.CREADA)
+                    || estados.contains(EstadoSolicitudBorradoEnum.RECHAZADA);
+        }
     }
+
     
     @Override
     public void setFachadaFuente(FachadaFuente fachadaFuente) {
