@@ -56,12 +56,6 @@ public class SolicitudController {
     public ResponseEntity<HechoResponseDTO> getSolicitudesByHechoId(@PathVariable String hechoId) {
         log.info("🔍 Buscando solicitudes para hechoId={}", hechoId);
 
-        var hechoDTO = fachadaFuente.buscarHechoXId(hechoId);
-        if (hechoDTO == null) {
-            log.info("Hecho no encontrado en Fuentes -> hechoId={} activo=false", hechoId);
-            return ResponseEntity.ok(new HechoResponseDTO(hechoId, false));
-        }
-
         try {
             List<SolicitudDTO> solicitudes = fachada.buscarSolicitudXHecho(hechoId);
             log.debug("Solicitudes encontradas: {}", solicitudes);
