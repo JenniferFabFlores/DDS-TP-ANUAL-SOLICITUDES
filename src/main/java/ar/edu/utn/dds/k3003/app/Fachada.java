@@ -127,20 +127,31 @@ public class Fachada implements FachadaSolicitudes {
 
     @Override
     public boolean estaActivo(String idHecho) {
+        log.info("▶️ Verificando si hecho={} está activo", idHecho);
 
         HechoDTO hechoDTO = this.fachadaFuente.buscarHechoXId(idHecho);
+        log.debug("HechoDTO recuperado: {}", hechoDTO);
+
         if (hechoDTO == null) {
+            log.warn("Hecho={} no encontrado -> activo=false", idHecho);
             return false;
-        } else{
+        } else {
             var estados = repo.findByHechoId(idHecho).stream()
                     .map(Solicitud::getEstado)
                     .collect(java.util.stream.Collectors.toSet());
 
+            log.debug("Estados asociados a hecho {}: {}", idHecho, estados);
+
             if (estados.contains(EstadoSolicitudBorradoEnum.ACEPTADA)) {
+                log.info("Hecho={} tiene una solicitud ACEPTADA -> activo=false", idHecho);
                 return false;
             }
-            return estados.contains(EstadoSolicitudBorradoEnum.CREADA)
+
+            boolean activo = estados.contains(EstadoSolicitudBorradoEnum.CREADA)
                     || estados.contains(EstadoSolicitudBorradoEnum.RECHAZADA);
+            log.info("Hecho={} activo={}", idHecho, activo);
+
+            return activo;
         }
     }
 
