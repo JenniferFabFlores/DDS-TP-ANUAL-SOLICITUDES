@@ -1,6 +1,7 @@
 package ar.edu.utn.dds.k3003.controllers;
 
 import ar.edu.utn.dds.k3003.app.Fachada;
+import ar.edu.utn.dds.k3003.app.FachadaFuente;
 import ar.edu.utn.dds.k3003.facades.dtos.EstadoSolicitudBorradoEnum;
 import ar.edu.utn.dds.k3003.facades.dtos.SolicitudDTO;
 import ar.edu.utn.dds.k3003.controllers.dtos.HechoResponseDTO;
@@ -27,10 +28,12 @@ public class SolicitudController {
     private final Fachada fachada;
     private static final Logger log = LoggerFactory.getLogger(SolicitudController.class);
     private final SolicitudRepository repo;
+    private final FachadaFuente fachadaFuente;
 
-    public SolicitudController(Fachada fachada, SolicitudRepository repo) {
+    public SolicitudController(Fachada fachada, SolicitudRepository repo, FachadaFuente fachadaFuente) {
         this.fachada = fachada;
         this.repo = repo;
+        this.fachadaFuente = fachadaFuente;
     }
 
     @GetMapping
@@ -52,6 +55,13 @@ public class SolicitudController {
     @GetMapping("/hechos/{hechoId}")
     public ResponseEntity<HechoResponseDTO> getSolicitudesByHechoId(@PathVariable String hechoId) {
         log.info("🔍 Buscando solicitudes para hechoId={}", hechoId);
+
+        var hechoDTO = fachadaFuente.buscarHechoXId(hechoId);
+        if (hechoDTO == null) {
+            log.info("Hecho no encontrado en Fuentes -> hechoId={} activo=false", hechoId);
+            return ResponseEntity.ok(new HechoResponseDTO(hechoId, false));
+        }
+
         try {
             List<SolicitudDTO> solicitudes = fachada.buscarSolicitudXHecho(hechoId);
             log.debug("Solicitudes encontradas: {}", solicitudes);
