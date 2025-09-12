@@ -49,28 +49,37 @@ public class SolicitudController {
         }
     }
 
+//    @GetMapping("/hechos/{hechoId}")
+//    public ResponseEntity<HechoResponseDTO> getSolicitudesByHechoId(@PathVariable String hechoId) {
+//        log.info("🔍 Buscando solicitudes para hechoId={}", hechoId);
+//        try {
+//            List<SolicitudDTO> solicitudes = fachada.buscarSolicitudXHecho(hechoId);
+//            log.debug("Solicitudes encontradas: {}", solicitudes);
+//
+//            if (solicitudes.isEmpty()) {
+//                log.info("No hay solicitudes -> hechoId={} activo=true", hechoId);
+//                return ResponseEntity.ok(new HechoResponseDTO(hechoId, true));
+//            } else if (solicitudes.stream().anyMatch(solicitud -> solicitud.estado() == EstadoSolicitudBorradoEnum.ACEPTADA)) {
+//                log.info("Hay al menos una solicitud ACEPTADA -> hechoId={} activo=false", hechoId);
+//                return ResponseEntity.ok(new HechoResponseDTO(hechoId, false));
+//            }
+//
+//            log.info("Solicitudes presentes pero ninguna ACEPTADA -> hechoId={} activo=true", hechoId);
+//            return ResponseEntity.ok(new HechoResponseDTO(hechoId, true));
+//        }
+//        catch (Exception e) {
+//            return ResponseEntity.ok(new HechoResponseDTO(hechoId, true));
+//        }
+//    }
+
     @GetMapping("/hechos/{hechoId}")
     public ResponseEntity<HechoResponseDTO> getSolicitudesByHechoId(@PathVariable String hechoId) {
         log.info("🔍 Buscando solicitudes para hechoId={}", hechoId);
-        try {
-            List<SolicitudDTO> solicitudes = fachada.buscarSolicitudXHecho(hechoId);
-            log.debug("Solicitudes encontradas: {}", solicitudes);
 
-            if (solicitudes.isEmpty()) {
-                log.info("No hay solicitudes -> hechoId={} activo=true", hechoId);
-                return ResponseEntity.ok(new HechoResponseDTO(hechoId, true));
-            } else if (solicitudes.stream().anyMatch(solicitud -> solicitud.estado() == EstadoSolicitudBorradoEnum.ACEPTADA)) {
-                log.info("Hay al menos una solicitud ACEPTADA -> hechoId={} activo=false", hechoId);
-                return ResponseEntity.ok(new HechoResponseDTO(hechoId, false));
-            }
-
-            log.info("Solicitudes presentes pero ninguna ACEPTADA -> hechoId={} activo=true", hechoId);
+        if(fachada.estaActivo(hechoId))
             return ResponseEntity.ok(new HechoResponseDTO(hechoId, true));
-        }
-        catch (Exception e) {
-            log.error("Error al buscar solicitudes para hechoId={}", hechoId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        else
+            return ResponseEntity.ok(new HechoResponseDTO(hechoId, false));
     }
 
     @PostMapping
